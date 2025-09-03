@@ -1,0 +1,121 @@
+package com.bsesenforcement
+
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
+import com.facebook.react.ReactActivity
+import com.facebook.react.ReactActivityDelegate
+import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
+import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.reactnativecompressor.CompressorPackage
+import java.io.File
+import com.bsesenforcement.SecurityChecks
+
+
+class MainActivity : ReactActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+
+        if (isDeviceRooted()) {
+            Toast.makeText(this, "Rooted device detected. Closing app.", Toast.LENGTH_LONG).show()
+            finishAffinity() // Immediately closes the app
+            return
+        }
+
+ try {
+            if (SecurityChecks.isFridaDetected() || SecurityChecks.isDebugged()) {
+                Toast.makeText(this, "Security threat detected. Closing app.", Toast.LENGTH_LONG).show()
+                finishAffinity()
+                return
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // If native lib missing or crashing, you may choose to fail-safe or continue
+        }
+
+    }
+
+
+      override fun onResume() {
+        super.onResume()
+        // Allow normal usage again when app comes foreground
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+
+
+        try {
+            val isDevModeEnabled = Settings.Global.getInt(
+                contentResolver,
+                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+                0
+            ) != 0
+
+            val isAdbEnabled = Settings.Global.getInt(
+                contentResolver,
+                Settings.Global.ADB_ENABLED,
+                0
+            ) != 0
+/*
+            if (isDevModeEnabled || isAdbEnabled) {
+                Toast.makeText(this, "Debugging mode detected! Closing app.", Toast.LENGTH_LONG).show()
+                finishAffinity() // Closes all activities and exits the app
+            }*/
+            /*
+     if (isDevModeEnabled || isAdbEnabled || SecurityChecks.isFridaDetected() || SecurityChecks.isDebugged()) {
+                Toast.makeText(this, "Debugging mode detected! Closing app.", Toast.LENGTH_LONG).show()
+                finishAffinity()
+            }*/
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+    }
+
+    override fun onPause() {
+    super.onPause()
+    // Hide preview in recents when app goes background
+    window.setFlags(
+        android.view.WindowManager.LayoutParams.FLAG_SECURE,
+        android.view.WindowManager.LayoutParams.FLAG_SECURE
+    )
+}
+
+
+
+    private fun isDeviceRooted(): Boolean {
+        val paths = arrayOf(
+            "/system/app/Superuser.apk",
+            "/sbin/su", "/system/bin/su", "/system/xbin/su",
+            "/data/local/xbin/su", "/data/local/bin/su",
+            "/system/sd/xbin/su", "/system/bin/failsafe/su",
+            "/data/local/su", "/su/bin/su",
+
+             // Frida related binaries / libs
+        "/data/local/tmp/frida-server",
+        "/data/local/tmp/re.frida.server",
+        "/data/local/tmp/fs64",
+        "/data/local/tmp/fs32",
+        "/data/local/tmp/frida",
+        "/system/lib/libfrida-gadget.so",
+        "/system/lib64/libfrida-gadget.so",
+        "/data/local/tmp/libfrida-gadget.so"
+        )
+
+        return paths.any { File(it).exists() }
+    }
+
+
+  /**
+   * Returns the name of the main component registered from JavaScript. This is used to schedule
+   * rendering of the component.
+   */
+  override fun getMainComponentName(): String = "bsesenforcement"
+
+  /**
+   * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]
+   * which allows you to enable New Architecture with a single boolean flags [fabricEnabled]
+   */
+  override fun createReactActivityDelegate(): ReactActivityDelegate =
+      DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+}
